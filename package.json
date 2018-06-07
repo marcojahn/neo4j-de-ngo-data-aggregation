@@ -1,0 +1,12 @@
+{
+  "name": "neo4j-de-ngo-data-aggregation",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:marcojahn/neo4j-de-ngo-data-aggregation.git",
+  "author": "Marco Jahn <marco.jahn@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "axios": "^0.18.0"
+  }
+}

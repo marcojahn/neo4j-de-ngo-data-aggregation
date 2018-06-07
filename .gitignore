@@ -1,4 +1,6 @@
 neo4j-community-*
+node_modules
+crawled*
 
 # Created by https://www.gitignore.io/api/macos
 
