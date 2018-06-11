@@ -295,10 +295,14 @@ WITH {
  as data
 UNWIND data.profile as deputy
 
+// temporary create parliament. TODO REMOVE
+// MERGE (parliament:Parliament) ON CREATE SET
+//   parliament.name = 'Bundestag',
+//   parliament.uuid = deputy.parliament.uuid
+
 // create deputy
-MERGE (d:Deputy {username: deputy.meta.username})
-SET
-// ON CREATE SET
+MERGE (d:Deputy {uuid: deputy.meta.uuid})
+ON CREATE SET
   d.username = deputy.meta.username,
   d.first_name = deputy.personal.first_name,
   d.last_name = deputy.personal.last_name,
@@ -311,43 +315,42 @@ MERGE (d)-[:DEPUTY_IN]->(parliament)
 
 // create party
 MERGE (party:Party {name: deputy.party})
-SET party.name = deputy.party
-
-MERGE (d)-[:IS_MEMBER_OF]->(party)
+MERGE (d)-[:IS_MEMBER_OF {
+  name: parliament.name,
+  uuid: parliament.uuid
+}]->(party)
 WITH d, deputy, party
 
 MATCH (parliament:Parliament {uuid: deputy.parliament.uuid})
 MERGE (party)-[:BELONGS_TO]->(parliament)
 
 FOREACH (committee IN deputy.committees |
-   MERGE (com:ParliamentCommittee {uuid: committee.uuid})
-   SET com.name = committee.name
-   MERGE (d)-[:IS_COMITTEE_MEMBER_OF {
-     role: committee.role
-   }]->(com)
-   // MERGE (comrole:CommitteeRole {name: committee.role})
-   // MERGE (d)-[:HAS_COMMITTEE_ROLE]-(comrole)-[:IS_COMITTEE_MEMBER_OF]->(com)
+  MERGE (com:Committee {uuid: committee.uuid})
+  // SET com.name = committee.name
+  MERGE (d)-[:IS_COMITTEE_MEMBER_OF {
+    role: committee.role
+  }]->(com)
+  // MERGE (comrole:CommitteeRole {name: committee.role})
+  // MERGE (d)-[:HAS_COMMITTEE_ROLE]-(comrole)-[:IS_COMITTEE_MEMBER_OF]->(com)
 )
 
 FOREACH (sidejob IN deputy.sidejobs |
-   // MERGE (question)<-[:ANSWERS]-(answer:Answer {id:a.answer_id})
-   // MERGE (answerer:User {id:a.owner.user_id}) ON CREATE SET answerer.display_name = a.owner.display_name
   //  {
-	// 		meta: {
-	// 			uuid: "210f6776-2863-429e-82af-bd88e72a21f6",
-	// 			topics: ["Raumordnung, Bau- und Wohnungswesen", "Wirtschaft"]
-	// 		},
-	// 		organization: "Deutschland baut! e.V.",
-	// 		job: "Beratung",
-	// 		job_category: null,
-	// 		income: {
-	// 			total_min: 7000,
-	// 			total_max: 15000,
-	// 			date: "2017-10-24",
-	// 			classification: "3",
-	// 			interval: "einmalig"
-	// 		}
-	// 	}
+  // 		meta: {
+  // 			uuid: "210f6776-2863-429e-82af-bd88e72a21f6",
+  // 			topics: ["Raumordnung, Bau- und Wohnungswesen", "Wirtschaft"]
+  // 		},
+  // 		organization: "Deutschland baut! e.V.",
+  // 		job: "Beratung",
+  // 		job_category: null,
+  // 		income: {
+  // 			total_min: 7000,
+  // 			total_max: 15000,
+  // 			date: "2017-10-24",
+  // 			classification: "3",
+  // 			interval: "einmalig"
+  // 		}
+  // 	}
   MERGE (organization:Organization {name: sidejob.organization})
   // MERGE (sj:DeputySidejob {uuid: sidejob.meta.uuid})
   // SET
@@ -359,8 +362,16 @@ FOREACH (sidejob IN deputy.sidejobs |
   MERGE (d)-[:HAS_SIDEJOB {
     job: CASE WHEN sidejob.job IS NULL THEN '' ELSE sidejob.job END,
     job_category: CASE WHEN sidejob.job_category IS NULL THEN '' ELSE sidejob.job_category END,
-    paid: CASE WHEN exists(sidejob.income) THEN true ELSE false END
+    paid: CASE WHEN exists(sidejob.income) THEN true ELSE false END,
+    interval: CASE WHEN exists(sidejob.income) THEN sidejob.income.interval ELSE false END
   }]->(organization)
+
+  FOREACH(topic in sidejob.meta.topics |
+    MERGE (nodeTopic:Topic {name: topic})
+
+    // MERGE (nodeTopic)<-[:HAS_TOPIC]-(com)
+    MERGE (d)-[:HAS_SIDEJOB_TOPIC]->(nodeTopic)-[:HAS_SIDEJOB_TOPIC_FOR]->(organization)
+  )
 )
 
 WITH d, deputy, party

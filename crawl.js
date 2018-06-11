@@ -25,10 +25,12 @@ async function getJSON(resource, comparator, dataProperty) {
 }
 
 async function startCrawl(rootParliament, normalizeFolderdName) {
-  const responseParliament = await getJSON(URLS.parliaments, rootParliament, 'parliaments');
+  // const responseParliament = await getJSON(URLS.parliaments, rootParliament, 'parliaments');
+  const responseParliamentRemote = await require('./crawled-bundestag/parliaments.json').parliaments;
+  const responseParliament = await responseParliamentRemote.find(parliament => parliament.name === 'Bundestag');
 
   for (let [key, value] of Object.entries(responseParliament.datasets)) {
-    if (value['by-uuid'].includes('deputies')) { // only deputies atm
+    /*if (value['by-uuid'].includes('deputies')) { // debuties
       const profilesResponse = await getJSON(value['by-uuid'], '*', 'profiles');
 
       for (let profile of profilesResponse) {
@@ -39,11 +41,16 @@ async function startCrawl(rootParliament, normalizeFolderdName) {
         // // https://www.abgeordnetenwatch.de/api/parliament/60d0787f-e311-4283-a7fd-85b9f62a9b33/profile/peter-ramsauer/profile.json
         FILESTACK.push(`${URLS.baseParliament}/${parliamentUUID}/profile/${username}/profile.json`);
       }
+    }*/
+
+    if (value['by-uuid'].includes('committees')) { // committees
+      console.log(value['by-uuid']);
+      FILESTACK.push(value['by-uuid']);
     }
   }
 
-  console.log('=== FILESTACK ===')
-  console.log(FILESTACK);
+  console.log('=== FILESTACK count ===')
+  console.log(FILESTACK.length);
 
   const dirname = __dirname + '/crawled-' + normalizeFolderdName;
   if (!fs.existsSync(dirname)){
@@ -52,4 +59,4 @@ async function startCrawl(rootParliament, normalizeFolderdName) {
   fs.writeFileSync(dirname + '/wget_todo.txt', FILESTACK.join('\n'));
 }
 
-startCrawl('Bundestag 2013-2017', 'bundestag-2013-2017');
+startCrawl('Bundestag', 'bundestag');
